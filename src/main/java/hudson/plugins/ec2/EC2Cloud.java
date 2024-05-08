@@ -184,7 +184,7 @@ public abstract class EC2Cloud extends Cloud {
         if (templates == null) {
             this.templates = Collections.emptyList();
         } else {
-            this.templates = templates;g
+            this.templates = templates;
         }
 
         if (instanceCapStr == null || instanceCapStr.isEmpty()) {

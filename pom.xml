@@ -76,7 +76,7 @@ THE SOFTWARE.
     </scm>
 
     <properties>
-        <changelist>999999-SNAPSHOT</changelist>
+        <changelist>1609.v53b_02a_b_9e52d.SNOW20240508</changelist>
         <jenkins.version>2.361.4</jenkins.version>
         <gitHubRepo>jenkinsci/${project.artifactId}-plugin</gitHubRepo>
     </properties>
