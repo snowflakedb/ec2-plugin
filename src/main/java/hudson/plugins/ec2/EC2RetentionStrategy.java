@@ -68,7 +68,7 @@ public class EC2RetentionStrategy extends RetentionStrategy<EC2Computer> impleme
     private transient ReentrantLock checkLock;
     private static final int STARTUP_TIME_DEFAULT_VALUE = 30;
 
-    private static final Integer CHECK_INTERVAL_MINUTES = Integer.getInteger("jenkins.ec2.checkIntervalMinutes", 1);
+    private static final Integer CHECK_INTERVAL_MINUTES = Integer.getInteger("jenkins.ec2.checkIntervalMinutes", 2);
 
     @DataBoundConstructor
     public EC2RetentionStrategy(String idleTerminationMinutes) {
