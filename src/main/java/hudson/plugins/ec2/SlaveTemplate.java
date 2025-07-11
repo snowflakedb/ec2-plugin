@@ -2190,18 +2190,11 @@ public class SlaveTemplate implements Describable<SlaveTemplate> {
             }
         } else {
             try {
-<<<<<<< HEAD
                 newInstances = new ArrayList<>(
                         ec2.runInstances(riRequestBuilder.build()).instances());
             } catch (Ec2Exception e) {
                 logProvisionInfo("Jenkins attempted to reserve "
                         + riRequest.maxCount()
-=======
-                newInstances = ec2.runInstances(riRequest).getReservation().getInstances();
-            } catch (AmazonEC2Exception e) {
-                logProvisionInfo("Jenkins attempted to reserve "
-                        + riRequest.getMaxCount()
->>>>>>> d3e6b1cd (Update log message to include number of nodes requested)
                         + " instances and received this EC2 exception: " + e.getMessage());
                 throw e;
             }
