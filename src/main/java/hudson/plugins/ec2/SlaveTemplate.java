@@ -1795,6 +1795,43 @@ public class SlaveTemplate implements Describable<SlaveTemplate> {
         LOGGER.info(this + ". " + message);
     }
 
+    private void logRunInstancesToDatabase(RunInstancesRequest riRequest, List<Instance> provisionedInstances, AmazonEC2 ec2) {
+        try {
+            SnowflakeDatabase database = SnowflakeDatabase.getInstance();
+            
+            // Extract metadata from request and response
+            String region = extractRegionFromEc2(ec2);
+            String availabilityZone = getZone();
+            if (availabilityZone == null && riRequest.getPlacement() != null) {
+                availabilityZone = riRequest.getPlacement().getAvailabilityZone();
+            }
+            String eventId = java.util.UUID.randomUUID().toString();
+            int minCount = riRequest.getMinCount();
+            int maxCount = riRequest.getMaxCount();
+            String instanceType = riRequest.getInstanceType().toString();
+            int instancesProvisioned = provisionedInstances.size();
+            
+            // Log to database
+            database.logRunInstancesRequest(region, availabilityZone, eventId, minCount, maxCount, instanceType, instancesProvisioned);
+            
+            LOGGER.info("Successfully logged RunInstances request to Snowflake database: " + eventId);
+        } catch (Exception e) {
+            LOGGER.log(Level.WARNING, "Failed to log RunInstances request to Snowflake database", e);
+        }
+    }
+
+    private String extractRegionFromEc2(AmazonEC2 ec2) {
+        try {
+            if (parent != null && parent.getRegion() != null) {
+                return parent.getRegion();
+            }
+            return "unknown-region";
+        } catch (Exception e) {
+            LOGGER.log(Level.WARNING, "Failed to extract region", e);
+            return "unknown-region";
+        }
+    }
+
     HashMap<RunInstancesRequest, List<Filter>> makeRunInstancesRequestAndFilters(Image image, int number, AmazonEC2 ec2)
             throws IOException {
         return makeRunInstancesRequestAndFilters(image, number, ec2, true);
@@ -2031,6 +2068,8 @@ public class SlaveTemplate implements Describable<SlaveTemplate> {
         } else {
             try {
                 newInstances = ec2.runInstances(riRequest).getReservation().getInstances();
+                // Log the RunInstances request to Snowflake database
+                logRunInstancesToDatabase(riRequest, newInstances, ec2);
             } catch (AmazonEC2Exception e) {
                 logProvisionInfo("Jenkins attempted to reserve "
                         + riRequest.getMaxCount()
