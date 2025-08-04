@@ -1846,7 +1846,9 @@ public class SlaveTemplate implements Describable<SlaveTemplate> {
     HashMap<RunInstancesRequest, List<Filter>> makeRunInstancesRequestAndFilters(
             Image image, int number, AmazonEC2 ec2, boolean rotateSubnet) throws IOException {
         String imageId = image.getImageId();
-        RunInstancesRequest riRequest = new RunInstancesRequest(imageId, 1, number).withInstanceType(type);
+        // Only set min to 10 if the queue volume is sufficiently large (arbitrary value for testing)
+        int minCount = number >= 10 ? 10 : 1;
+        RunInstancesRequest riRequest = new RunInstancesRequest(imageId, minCount, number).withInstanceType(type);
         riRequest.setEbsOptimized(ebsOptimized);
         riRequest.setMonitoring(monitoring);
 
