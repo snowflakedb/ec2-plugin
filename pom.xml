@@ -172,6 +172,7 @@ THE SOFTWARE.
       <groupId>net.snowflake</groupId>
       <artifactId>snowflake-jdbc</artifactId>
       <version>3.14.4</version>
+      <scope>provided</scope>
     </dependency>
     <!-- Database plugin for connection management -->
     <dependency>
