@@ -1007,7 +1007,7 @@ public class SlaveTemplate implements Describable<SlaveTemplate> {
                 numExecutors,
                 remoteAdmin,
                 amiType,
-                null, // javaPath
+                null, // javaPath - deprecated constructor doesn't have this parameter
                 jvmopts,
                 stopOnTerminate,
                 subnetId,
