@@ -996,7 +996,7 @@ public class SlaveTemplate implements Describable<SlaveTemplate> {
                 spotConfig,
                 securityGroups,
                 remoteFS,
-                type,
+                type != null ? type.toString() : null,
                 ebsOptimized,
                 labelString,
                 mode,
@@ -1007,16 +1007,18 @@ public class SlaveTemplate implements Describable<SlaveTemplate> {
                 numExecutors,
                 remoteAdmin,
                 amiType,
+                null, // javaPath
                 jvmopts,
                 stopOnTerminate,
                 subnetId,
                 tags,
                 idleTerminationMinutes,
+                0, // minimumNumberOfInstances
+                0, // minimumNumberOfSpareInstances
                 instanceCapStr,
                 iamInstanceProfile,
                 deleteRootOnTermination,
                 useEphemeralDevices,
-                useDedicatedTenancy,
                 launchTimeoutStr,
                 associatePublicIp,
                 customDeviceMapping,
@@ -1024,7 +1026,16 @@ public class SlaveTemplate implements Describable<SlaveTemplate> {
                 monitoring,
                 t2Unlimited,
                 ConnectionStrategy.backwardsCompatible(usePrivateDnsName, connectUsingPublicIp, associatePublicIp),
-                -1);
+                -1,
+                Collections.emptyList(), // nodeProperties
+                null, // hostKeyVerificationStrategy
+                useDedicatedTenancy ? Tenancy.Dedicated : Tenancy.Default,
+                EbsEncryptRootVolume.DEFAULT,
+                null, // metadataEndpointEnabled
+                null, // metadataTokensRequired
+                null, // metadataHopsLimit
+                null, // metadataSupported
+                null); // enclaveEnabled
     }
 
     @Deprecated
