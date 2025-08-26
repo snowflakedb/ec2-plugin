@@ -74,6 +74,8 @@ import java.util.stream.Stream;
 import jenkins.model.Jenkins;
 import jenkins.model.JenkinsLocationConfiguration;
 import jenkins.slaves.iterators.api.NodeIterator;
+import hudson.plugins.ec2.monitoring.EC2ProvisioningMonitor;
+import hudson.plugins.ec2.monitoring.ProvisioningEvent;
 import org.apache.commons.lang.StringUtils;
 import org.kohsuke.accmod.Restricted;
 import org.kohsuke.accmod.restrictions.NoExternalUse;
