@@ -977,234 +977,6 @@ public class SlaveTemplate implements Describable<SlaveTemplate> {
             String subnetId,
             List<EC2Tag> tags,
             String idleTerminationMinutes,
-            int minimumNumberOfInstances,
-            String instanceCapStr,
-            String iamInstanceProfile,
-            boolean deleteRootOnTermination,
-            boolean useEphemeralDevices,
-            boolean useDedicatedTenancy,
-            String launchTimeoutStr,
-            boolean associatePublicIp,
-            String customDeviceMapping,
-            boolean connectBySSHProcess,
-            boolean monitoring,
-            boolean t2Unlimited,
-            ConnectionStrategy connectionStrategy,
-            int maxTotalUses,
-            List<? extends NodeProperty<?>> nodeProperties) {
-        this(
-                ami,
-                zone,
-                spotConfig,
-                securityGroups,
-                remoteFS,
-                type,
-                ebsOptimized,
-                labelString,
-                mode,
-                description,
-                initScript,
-                tmpDir,
-                userData,
-                numExecutors,
-                remoteAdmin,
-                amiType,
-                jvmopts,
-                stopOnTerminate,
-                subnetId,
-                tags,
-                idleTerminationMinutes,
-                minimumNumberOfInstances,
-                0,
-                instanceCapStr,
-                iamInstanceProfile,
-                deleteRootOnTermination,
-                useEphemeralDevices,
-                useDedicatedTenancy,
-                launchTimeoutStr,
-                associatePublicIp,
-                customDeviceMapping,
-                connectBySSHProcess,
-                monitoring,
-                t2Unlimited,
-                connectionStrategy,
-                maxTotalUses,
-                nodeProperties);
-    }
-
-    @Deprecated
-    public SlaveTemplate(
-            String ami,
-            String zone,
-            SpotConfiguration spotConfig,
-            String securityGroups,
-            String remoteFS,
-            com.amazonaws.services.ec2.model.InstanceType type,
-            boolean ebsOptimized,
-            String labelString,
-            Node.Mode mode,
-            String description,
-            String initScript,
-            String tmpDir,
-            String userData,
-            String numExecutors,
-            String remoteAdmin,
-            AMITypeData amiType,
-            String jvmopts,
-            boolean stopOnTerminate,
-            String subnetId,
-            List<EC2Tag> tags,
-            String idleTerminationMinutes,
-            int minimumNumberOfInstances,
-            String instanceCapStr,
-            String iamInstanceProfile,
-            boolean deleteRootOnTermination,
-            boolean useEphemeralDevices,
-            boolean useDedicatedTenancy,
-            String launchTimeoutStr,
-            boolean associatePublicIp,
-            String customDeviceMapping,
-            boolean connectBySSHProcess,
-            boolean monitoring,
-            boolean t2Unlimited,
-            ConnectionStrategy connectionStrategy,
-            int maxTotalUses) {
-        this(
-                ami,
-                zone,
-                spotConfig,
-                securityGroups,
-                remoteFS,
-                type,
-                ebsOptimized,
-                labelString,
-                mode,
-                description,
-                initScript,
-                tmpDir,
-                userData,
-                numExecutors,
-                remoteAdmin,
-                amiType,
-                jvmopts,
-                stopOnTerminate,
-                subnetId,
-                tags,
-                idleTerminationMinutes,
-                minimumNumberOfInstances,
-                instanceCapStr,
-                iamInstanceProfile,
-                deleteRootOnTermination,
-                useEphemeralDevices,
-                useDedicatedTenancy,
-                launchTimeoutStr,
-                associatePublicIp,
-                customDeviceMapping,
-                connectBySSHProcess,
-                monitoring,
-                t2Unlimited,
-                connectionStrategy,
-                maxTotalUses,
-                Collections.emptyList());
-    }
-
-    @Deprecated
-    public SlaveTemplate(
-            String ami,
-            String zone,
-            SpotConfiguration spotConfig,
-            String securityGroups,
-            String remoteFS,
-            com.amazonaws.services.ec2.model.InstanceType type,
-            boolean ebsOptimized,
-            String labelString,
-            Node.Mode mode,
-            String description,
-            String initScript,
-            String tmpDir,
-            String userData,
-            String numExecutors,
-            String remoteAdmin,
-            AMITypeData amiType,
-            String jvmopts,
-            boolean stopOnTerminate,
-            String subnetId,
-            List<EC2Tag> tags,
-            String idleTerminationMinutes,
-            String instanceCapStr,
-            String iamInstanceProfile,
-            boolean deleteRootOnTermination,
-            boolean useEphemeralDevices,
-            boolean useDedicatedTenancy,
-            String launchTimeoutStr,
-            boolean associatePublicIp,
-            String customDeviceMapping,
-            boolean connectBySSHProcess,
-            boolean monitoring,
-            boolean t2Unlimited,
-            ConnectionStrategy connectionStrategy,
-            int maxTotalUses) {
-        this(
-                ami,
-                zone,
-                spotConfig,
-                securityGroups,
-                remoteFS,
-                type,
-                ebsOptimized,
-                labelString,
-                mode,
-                description,
-                initScript,
-                tmpDir,
-                userData,
-                numExecutors,
-                remoteAdmin,
-                amiType,
-                jvmopts,
-                stopOnTerminate,
-                subnetId,
-                tags,
-                idleTerminationMinutes,
-                0,
-                instanceCapStr,
-                iamInstanceProfile,
-                deleteRootOnTermination,
-                useEphemeralDevices,
-                useDedicatedTenancy,
-                launchTimeoutStr,
-                associatePublicIp,
-                customDeviceMapping,
-                connectBySSHProcess,
-                monitoring,
-                t2Unlimited,
-                connectionStrategy,
-                maxTotalUses);
-    }
-
-    @Deprecated
-    public SlaveTemplate(
-            String ami,
-            String zone,
-            SpotConfiguration spotConfig,
-            String securityGroups,
-            String remoteFS,
-            com.amazonaws.services.ec2.model.InstanceType type,
-            boolean ebsOptimized,
-            String labelString,
-            Node.Mode mode,
-            String description,
-            String initScript,
-            String tmpDir,
-            String userData,
-            String numExecutors,
-            String remoteAdmin,
-            AMITypeData amiType,
-            String jvmopts,
-            boolean stopOnTerminate,
-            String subnetId,
-            List<EC2Tag> tags,
-            String idleTerminationMinutes,
             boolean usePrivateDnsName,
             String instanceCapStr,
             String iamInstanceProfile,
@@ -3471,6 +3243,165 @@ public class SlaveTemplate implements Describable<SlaveTemplate> {
                 }
             }
             return FormValidation.ok();
+        }
+    }
+
+    /**
+     * Helper method to get the controller name for monitoring.
+     */
+    private String getControllerName() {
+        // Try environment variable first
+        String controllerName = System.getenv("JENKINS_BASE_HOSTNAME_SHORT");
+        if (controllerName != null && !controllerName.trim().isEmpty()) {
+            LOGGER.log(Level.FINE, "Found controller name from JENKINS_BASE_HOSTNAME_SHORT: " + controllerName.trim());
+            return controllerName.trim();
+        }
+
+        // Try other environment variables
+        controllerName = System.getenv("HOSTNAME");
+        if (controllerName != null && !controllerName.trim().isEmpty()) {
+            return controllerName.trim();
+        }
+
+        controllerName = System.getenv("COMPUTERNAME");
+        if (controllerName != null && !controllerName.trim().isEmpty()) {
+            return controllerName.trim();
+        }
+
+        // Try to extract from Jenkins URL
+        try {
+            String jenkinsUrl = Jenkins.get().getRootUrl();
+            if (jenkinsUrl != null) {
+                java.net.URL url = new java.net.URL(jenkinsUrl);
+                String host = url.getHost();
+                if (host != null && !host.trim().isEmpty()) {
+                    // Remove domain suffix if present
+                    int dotIndex = host.indexOf('.');
+                    if (dotIndex > 0) {
+                        host = host.substring(0, dotIndex);
+                    }
+                    return host.trim();
+                }
+            }
+        } catch (Exception e) {
+            // Ignore URL parsing exceptions
+        }
+
+        // Try Java system hostname
+        try {
+            controllerName = java.net.InetAddress.getLocalHost().getHostName();
+            if (controllerName != null && !controllerName.trim().isEmpty()) {
+                // Remove domain suffix if present
+                int dotIndex = controllerName.indexOf('.');
+                if (dotIndex > 0) {
+                    controllerName = controllerName.substring(0, dotIndex);
+                }
+                return controllerName.trim();
+            }
+        } catch (Exception e) {
+            // Ignore network exceptions
+        }
+
+        // Final fallback
+        LOGGER.log(Level.WARNING, "Could not determine controller name, using fallback: jenkins-controller");
+        return "jenkins-controller";
+    }
+
+    /**
+     * Helper method to record on-demand provisioning events for monitoring.
+     */
+    private void recordProvisioningEvent(software.amazon.awssdk.services.ec2.model.RunInstancesRequest request, String phase, String errorMessage, int provisionedCount) {
+        try {
+            String region = getParent().getRegion();
+            String availabilityZone = request.placement() != null ? request.placement().availabilityZone() : "unknown";
+            String controllerName = getControllerName();
+            String cloudName = getParent().getCloudName();
+            String jenkinsUrl = Jenkins.get().getRootUrl();
+            
+            // Use the original string value instead of the enum to preserve R8gd and other new instance types
+            String instanceTypeStr = "unknown";
+            if (request.instanceType() != null) {
+                if (request.instanceType() == software.amazon.awssdk.services.ec2.model.InstanceType.UNKNOWN_TO_SDK_VERSION) {
+                    // For unknown instance types, use the original string value
+                    instanceTypeStr = this.type; // Use the original string from SlaveTemplate
+                    LOGGER.log(Level.INFO, "Using fallback instance type string for unknown SDK type: " + instanceTypeStr);
+                } else {
+                    instanceTypeStr = request.instanceType().toString();
+                    LOGGER.log(Level.FINE, "Using SDK recognized instance type: " + instanceTypeStr);
+                }
+            } else {
+                LOGGER.log(Level.WARNING, "Request instance type is null, using 'unknown'");
+            }
+            LOGGER.log(Level.FINE, "Final instance type for monitoring: " + instanceTypeStr);
+            
+            ProvisioningEvent event = new ProvisioningEvent(
+                region,
+                availabilityZone,
+                "on-demand-" + System.currentTimeMillis(), // Generate a unique request ID
+                instanceTypeStr,
+                request.maxCount(),
+                request.minCount(),
+                provisionedCount,
+                controllerName,
+                cloudName,
+                phase,
+                errorMessage,
+                jenkinsUrl
+            );
+            
+            EC2ProvisioningMonitor.recordProvisioningEvent(event);
+        } catch (Exception e) {
+            LOGGER.log(Level.WARNING, "Failed to record provisioning event", e);
+        }
+    }
+
+    /**
+     * Helper method to record spot instance provisioning events for monitoring.
+     */
+    private void recordSpotProvisioningEvent(software.amazon.awssdk.services.ec2.model.RequestSpotInstancesRequest request, String phase, String errorMessage, int provisionedCount) {
+        try {
+            String region = getParent().getRegion();
+            String availabilityZone = request.launchSpecification() != null && 
+                                    request.launchSpecification().placement() != null ? 
+                                    request.launchSpecification().placement().availabilityZone() : "unknown";
+            String controllerName = getControllerName();
+            String cloudName = getParent().getCloudName();
+            String jenkinsUrl = Jenkins.get().getRootUrl();
+            
+            // Use the original string value instead of the enum to preserve R8gd and other new instance types
+            String instanceTypeStr = "unknown";
+            if (request.launchSpecification() != null && request.launchSpecification().instanceType() != null) {
+                if (request.launchSpecification().instanceType() == software.amazon.awssdk.services.ec2.model.InstanceType.UNKNOWN_TO_SDK_VERSION) {
+                    // For unknown instance types, use the original string value
+                    instanceTypeStr = this.type; // Use the original string from SlaveTemplate
+                    LOGGER.log(Level.INFO, "Using fallback instance type string for unknown SDK type (spot): " + instanceTypeStr);
+                } else {
+                    instanceTypeStr = request.launchSpecification().instanceType().toString();
+                    LOGGER.log(Level.FINE, "Using SDK recognized instance type (spot): " + instanceTypeStr);
+                }
+            } else {
+                LOGGER.log(Level.WARNING, "Spot request launch specification or instance type is null, using 'unknown'");
+            }
+            LOGGER.log(Level.FINE, "Final instance type for monitoring (spot): " + instanceTypeStr);
+            
+            ProvisioningEvent event = new ProvisioningEvent(
+                region,
+                availabilityZone,
+                "spot-" + System.currentTimeMillis(), // Generate a unique request ID
+                instanceTypeStr,
+                request.instanceCount(), // For spot instances, instanceCount is both min and max
+                request.instanceCount(),
+                provisionedCount,
+                controllerName,
+                cloudName,
+                phase,
+                errorMessage,
+                jenkinsUrl
+            );
+            
+            EC2ProvisioningMonitor.recordProvisioningEvent(event);
+        } catch (Exception e) {
+            LOGGER.log(Level.WARNING, "Failed to record spot provisioning event", e);
         }
     }
 }

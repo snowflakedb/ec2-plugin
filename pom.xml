@@ -167,6 +167,23 @@ THE SOFTWARE.
       <groupId>org.jenkins-ci.plugins</groupId>
       <artifactId>ssh-credentials</artifactId>
     </dependency>
+    <!-- Snowflake JDBC driver for monitoring -->
+    <dependency>
+      <groupId>net.snowflake</groupId>
+      <artifactId>snowflake-jdbc</artifactId>
+      <version>3.14.4</version>
+    </dependency>
+    <!-- Database plugin for connection management -->
+    <dependency>
+      <groupId>org.jenkins-ci.plugins</groupId>
+      <artifactId>database</artifactId>
+      <version>274.vea_2e859b_2661</version>
+    </dependency>
+    <!-- JSON API for event formatting -->
+    <dependency>
+      <groupId>io.jenkins.plugins</groupId>
+      <artifactId>json-api</artifactId>
+    </dependency>
     <dependency>
       <groupId>org.jenkins-ci.plugins.workflow</groupId>
       <artifactId>workflow-step-api</artifactId>
