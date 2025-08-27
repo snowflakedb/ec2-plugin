@@ -1963,26 +1963,57 @@ public class SlaveTemplate implements Describable<SlaveTemplate> {
             }
             riRequestBuilder.instanceMarketOptions(instanceMarketOptionsRequestBuilder.build());
             try {
+                // Record monitoring event before request
+                recordProvisioningEvent(riRequestBuilder.build(), "REQUEST", null, 0);
+                
                 newInstances = new ArrayList<>(
                         ec2.runInstances(riRequestBuilder.build()).instances());
+                        
+                // Record success event
+                recordProvisioningEvent(riRequestBuilder.build(), "SUCCESS", null, newInstances.size());
             } catch (Ec2Exception e) {
+                // Record failure event
+                recordProvisioningEvent(riRequestBuilder.build(), "FAILURE", e.getMessage(), 0);
+                
                 if (fallbackSpotToOndemand
                         && "InsufficientInstanceCapacity"
                                 .equals(e.awsErrorDetails().errorCode())) {
                     logProvisionInfo(
                             "There is no spot capacity available matching your request, falling back to on-demand instance.");
-                    riRequestBuilder.instanceMarketOptions(instanceMarketOptionsRequestBuilder.build());
-                    newInstances = new ArrayList<>(
-                            ec2.runInstances(riRequestBuilder.build()).instances());
+                    riRequestBuilder.instanceMarketOptions((InstanceMarketOptionsRequest) null);
+                    
+                    try {
+                        // Record fallback request event
+                        recordProvisioningEvent(riRequestBuilder.build(), "REQUEST_FALLBACK", null, 0);
+                        
+                        newInstances = new ArrayList<>(
+                                ec2.runInstances(riRequestBuilder.build()).instances());
+                                
+                        // Record fallback success event
+                        recordProvisioningEvent(riRequestBuilder.build(), "SUCCESS_FALLBACK", null, newInstances.size());
+                    } catch (Ec2Exception fallbackException) {
+                        // Record fallback failure event
+                        recordProvisioningEvent(riRequestBuilder.build(), "FAILURE_FALLBACK", fallbackException.getMessage(), 0);
+                        throw fallbackException;
+                    }
                 } else {
                     throw e;
                 }
             }
         } else {
             try {
+                // Record monitoring event before request
+                recordProvisioningEvent(riRequestBuilder.build(), "REQUEST", null, 0);
+                
                 newInstances = new ArrayList<>(
                         ec2.runInstances(riRequestBuilder.build()).instances());
+                        
+                // Record success event
+                recordProvisioningEvent(riRequestBuilder.build(), "SUCCESS", null, newInstances.size());
             } catch (Ec2Exception e) {
+                // Record failure event
+                recordProvisioningEvent(riRequestBuilder.build(), "FAILURE", e.getMessage(), 0);
+                
                 logProvisionInfo("Jenkins attempted to reserve "
                         + riRequest.maxCount()
                         + " instances and received this EC2 exception: " + e.getMessage());
@@ -2301,9 +2332,18 @@ public class SlaveTemplate implements Describable<SlaveTemplate> {
 
             RequestSpotInstancesResponse reqResult;
             try {
+                // Record monitoring event before request
+                recordSpotProvisioningEvent(spotRequestBuilder.build(), "REQUEST", null, 0);
+                
                 // Make the request for a new Spot instance
                 reqResult = ec2.requestSpotInstances(spotRequestBuilder.build());
+                
+                // Record success event
+                recordSpotProvisioningEvent(spotRequestBuilder.build(), "SUCCESS", null, reqResult.spotInstanceRequests().size());
             } catch (Ec2Exception e) {
+                // Record failure event
+                recordSpotProvisioningEvent(spotRequestBuilder.build(), "FAILURE", e.getMessage(), 0);
+                
                 if (spotConfig.getFallbackToOndemand()
                         && "MaxSpotInstanceCountExceeded"
                                 .equals(e.awsErrorDetails().errorCode())) {
