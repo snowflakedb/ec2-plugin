@@ -87,7 +87,9 @@ THE SOFTWARE.
 
   <properties>
     <!-- Default changelist for local development - will be overridden by build script -->
-    <changelist>999999-SNAPSHOT</changelist>
+    <!-- Format: {datetimestamp}-{branchName} -->
+    <!-- Use YYYYMMDD for date only, YYYYMMDDHHMMSS for full datetime -->
+    <changelist>20250827223025-ec2-snowflake-monitoring-clean</changelist>
     <!-- https://www.jenkins.io/doc/developer/plugin-development/choosing-jenkins-baseline/ -->
     <jenkins.baseline>2.479</jenkins.baseline>
     <jenkins.version>${jenkins.baseline}.3</jenkins.version>
