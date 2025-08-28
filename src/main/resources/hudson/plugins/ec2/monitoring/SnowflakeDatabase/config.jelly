@@ -1,25 +1,25 @@
 <?xml version="1.0" encoding="UTF-8"?>
-<j:jelly xmlns:j="jelly:core" xmlns:st="jelly:stapler" xmlns:d="jelly:define" xmlns:l="/lib/layout" xmlns:t="/lib/hudson" xmlns:f="/lib/form" xmlns:c="/lib/credentials">
-    <f:entry title="Account Name" field="accountname">
-        <f:textbox />
-    </f:entry>
-    <f:entry title="Database" field="database">
-        <f:textbox />
-    </f:entry>
-    <f:entry title="Warehouse" field="warehouse">
-        <f:textbox />
-    </f:entry>
-    <f:entry title="Credentials" field="credentialsId">
-        <c:select />
-    </f:entry>
-    <f:entry title="Network Timeout (ms)" field="networktimeout">
-        <f:textbox default="5000" />
-    </f:entry>
-    <f:entry title="Query Timeout (ms)" field="querytimeout">
-        <f:textbox default="0" />
-    </f:entry>
-    <f:entry title="Login Timeout (ms)" field="logintimeout">
-        <f:textbox default="300000" />
-    </f:entry>
-    <f:validateButton title="Test Connection" progress="Testing..." method="validateSnowflake" with="accountname,database,warehouse,credentialsId,networktimeout,querytimeout,logintimeout" />
+<j:jelly xmlns:j="jelly:core" xmlns:st="jelly:stapler" xmlns:d="jelly:define" xmlns:l="/lib/layout" xmlns:t="/lib/hudson" xmlns:f="/lib/form">
+  <f:entry title="Account Name" field="accountname">
+    <f:textbox />
+  </f:entry>
+  <f:entry title="Database" field="database">
+    <f:textbox />
+  </f:entry>
+  <f:entry title="Warehouse" field="warehouse">
+    <f:textbox />
+  </f:entry>
+  <f:entry title="Credentials" field="credentialsId">
+    <c:select />
+  </f:entry>
+  <f:entry title="Network Timeout (ms)" field="networktimeout">
+    <f:textbox default="30000" />
+  </f:entry>
+  <f:entry title="Query Timeout (ms)" field="querytimeout">
+    <f:textbox default="30000" />
+  </f:entry>
+  <f:entry title="Login Timeout (ms)" field="logintimeout">
+    <f:textbox default="30000" />
+  </f:entry>
+  <f:validateButton title="Test Connection" progress="Testing..." method="validateSnowflake" with="accountname,database,warehouse,credentialsId,networktimeout,querytimeout,logintimeout" />
 </j:jelly> 

@@ -20,7 +20,8 @@ import java.util.logging.Level;
 import java.util.logging.Logger;
 
 /**
- * Monitors EC2 provisioning events and sends them to Snowflake for real-time monitoring.
+ * Monitor for EC2 provisioning events that sends data to Snowhouse database.
+ * Implements event queuing and batch processing similar to the Snowflake Jenkins connector.
  */
 @Extension
 public class EC2ProvisioningMonitor {
@@ -30,6 +31,7 @@ public class EC2ProvisioningMonitor {
     private static final ConcurrentLinkedQueue<String> eventQueue = new ConcurrentLinkedQueue<>();
     
     static {
+        // Schedule periodic sending of events to Snowhouse every 30 seconds
         Timer.get().scheduleAtFixedRate(new SafeTimerTask() {
             @Override
             protected void doRun() throws Exception {
@@ -41,7 +43,7 @@ public class EC2ProvisioningMonitor {
     }
 
     /**
-     * Records a provisioning event for monitoring.
+     * Add a provisioning event to the queue for batch processing.
      */
     public static void recordProvisioningEvent(ProvisioningEvent event) {
         HashMap<String, Object> eventMap = new HashMap<>();
@@ -63,6 +65,9 @@ public class EC2ProvisioningMonitor {
         enQueue(jsonMap.toString());
     }
 
+    /**
+     * Add an event to the queue.
+     */
     private static boolean enQueue(String queueItem) {
         boolean retVal = eventQueue.add(queueItem);
         LOG.log(LOG_LEVEL, "EC2 Provisioning event queue size: " + eventQueue.size());
@@ -70,7 +75,7 @@ public class EC2ProvisioningMonitor {
     }
 
     /**
-     * Sends queued events to Snowflake database.
+     * Send all queued events to Snowhouse database.
      */
     static synchronized void sendQueue() throws Exception {
         if (eventQueue.size() == 0) {
@@ -81,6 +86,7 @@ public class EC2ProvisioningMonitor {
         if (db == null) {
             LOG.log(Level.WARNING, "EC2ProvisioningMonitor failed - no database configured. " +
                     "Discarding " + eventQueue.size() + " events");
+            // Drop the existing queue to prevent it from growing forever
             eventQueue.clear();
             return;
         }
@@ -112,7 +118,7 @@ public class EC2ProvisioningMonitor {
                     new ByteArrayInputStream(eventsString.getBytes()),
                     fileName, true);
 
-            // Copy data from automatic table stage to table
+            // Copy data from automatic table stage to table (using existing schema)
             String copySql = "COPY INTO EC2_PROVISIONING_EVENTS " +
                     "(CREATE_TIME, REGION, AVAILABILITY_ZONE, REQUEST_ID, REQUESTED_INSTANCE_TYPE, " +
                     "REQUESTED_MAX_COUNT, REQUESTED_MIN_COUNT, PROVISIONED_INSTANCES_COUNT, " +

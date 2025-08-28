@@ -29,9 +29,11 @@ import com.cloudbees.plugins.credentials.domains.DomainRequirement;
 import hudson.security.ACL;
 
 /**
- * Snowflake database configuration for EC2 monitoring.
+ * Snowflake database configuration for EC2 provisioning monitoring.
+ * Based on the snowflake-jenkins-connector implementation.
  */
 public class SnowflakeDatabase extends Database {
+
     private static final Logger LOG = Logger.getLogger(SnowflakeDatabase.class.getName());
     private transient DataSource source;
 
@@ -44,8 +46,14 @@ public class SnowflakeDatabase extends Database {
     public final String credentialsId;
 
     @DataBoundConstructor
-    public SnowflakeDatabase(String accountname, String database, String warehouse, String credentialsId, 
-                           String networktimeout, String querytimeout, String logintimeout) {
+    public SnowflakeDatabase(String accountname,
+                            String database,
+                            String warehouse,
+                            String credentialsId,
+                            String networktimeout,
+                            String querytimeout,
+                            String logintimeout) {
+
         this.accountname = accountname;
         this.database = database;
         this.warehouse = warehouse;
@@ -61,29 +69,39 @@ public class SnowflakeDatabase extends Database {
 
     @Override
     public synchronized DataSource getDataSource() throws SQLException {
-        List credentialList = CredentialsProvider.lookupCredentials(StandardUsernamePasswordCredentials.class, 
-                Jenkins.getInstanceOrNull(), ACL.SYSTEM, Collections.<DomainRequirement>emptyList());
-        StandardUsernamePasswordCredentials credentials = (StandardUsernamePasswordCredentials)CredentialsMatchers
-                .firstOrNull(credentialList, CredentialsMatchers.allOf(CredentialsMatchers.withId(credentialsId)));
-        
-        if (source == null) {
+        List credentialList = CredentialsProvider.lookupCredentials(
+            StandardUsernamePasswordCredentials.class, Jenkins.getInstanceOrNull(), ACL.SYSTEM,
+            Collections.<DomainRequirement>emptyList());
+
+        StandardUsernamePasswordCredentials credentials = (StandardUsernamePasswordCredentials)CredentialsMatchers.firstOrNull(credentialList,
+          CredentialsMatchers.allOf(CredentialsMatchers.withId(credentialsId)));
+
+        if (source==null) {
             BasicDataSource2 fac = new BasicDataSource2();
             fac.setDriverClass(getDriverClass());
             fac.setUrl(getJdbcUrl());
             fac.setUsername(credentials.getUsername());
             fac.setPassword(Secret.toString(credentials.getPassword()));
             fac.setValidationQuery("SELECT 1");
+
             source = fac.createDataSource();
         }
         return source;
     }
 
     protected String getJdbcUrl() {
-        String url = "jdbc:snowflake://" + this.accountname + ".snowflakecomputing.com/?db=" + this.database 
-                + "&networkTimeout=" + this.networktimeout + "&queryTimeout=" + this.querytimeout 
-                + "&warehouse=" + this.warehouse + "&loginTimeout=" + this.logintimeout;
+        String url = "jdbc:snowflake://"+this.accountname+
+            ".snowflakecomputing.com/?db="+this.database+
+            "&networkTimeout="+this.networktimeout+
+            "&queryTimeout="+this.querytimeout+
+            "&warehouse="+this.warehouse+
+            "&loginTimeout="+this.logintimeout;
         LOG.log(Level.FINE, "JDBC URL {0}", url);
         return url;
+    }
+
+    public String fetchJdbcUrl() {
+        return getJdbcUrl();
     }
 
     @Extension
@@ -93,17 +111,33 @@ public class SnowflakeDatabase extends Database {
             return "Snowflake EC2 Monitoring";
         }
 
-        public FormValidation doValidateSnowflake(@QueryParameter String accountname, @QueryParameter String database, 
-                @QueryParameter String warehouse, @QueryParameter String credentialsId, @QueryParameter String networktimeout, 
-                @QueryParameter String querytimeout, @QueryParameter String logintimeout) throws NoSuchMethodException, 
-                InvocationTargetException, IllegalAccessException, InstantiationException {
+        public FormValidation doValidateSnowflake(
+            @QueryParameter String accountname,
+            @QueryParameter String database,
+            @QueryParameter String warehouse,
+            @QueryParameter String credentialsId,
+            @QueryParameter String networktimeout,
+            @QueryParameter String querytimeout,
+            @QueryParameter String logintimeout)
+                throws NoSuchMethodException, InvocationTargetException, IllegalAccessException, InstantiationException {
+
             DataSource ds;
             Connection con = null;
             Statement s = null;
             try {
-                Database db = clazz.getConstructor(String.class, String.class, String.class, String.class, String.class, 
-                        String.class, String.class).newInstance(accountname, database, warehouse, credentialsId, 
-                        networktimeout, querytimeout, logintimeout);
+                Database db = clazz.getConstructor(String.class,
+                                                String.class,
+                                                String.class,
+                                                String.class,
+                                                String.class,
+                                                String.class,
+                                                String.class).newInstance(accountname,
+                                                                        database,
+                                                                        warehouse,
+                                                                        credentialsId,
+                                                                        networktimeout,
+                                                                        querytimeout,
+                                                                        logintimeout);
                 ds = db.getDataSource();
                 con = ds.getConnection();
                 s = con.createStatement();
@@ -113,9 +147,12 @@ public class SnowflakeDatabase extends Database {
                 return FormValidation.error(e, "Failed to connect to " + getDisplayName());
             } finally {
                 try {
-                    if (s != null) s.close();
-                    if (con != null) con.close();
-                } catch (Exception e) {}
+                if (s != null)
+                    s.close();
+                if (con != null)
+                    con.close();
+                } catch (Exception e) {
+                }
             }
         }
 
@@ -124,8 +161,12 @@ public class SnowflakeDatabase extends Database {
             Jenkins.get().checkPermission(Jenkins.ADMINISTER);
             return new StandardListBoxModel()
                     .withEmptySelection()
-                    .withMatching(CredentialsMatchers.always(), CredentialsProvider.lookupCredentials(
-                            StandardUsernamePasswordCredentials.class, Jenkins.get(), ACL.SYSTEM, Collections.emptyList()));
+                    .withMatching(
+                        CredentialsMatchers.always(),
+                        CredentialsProvider.lookupCredentials(StandardUsernamePasswordCredentials.class,
+                                Jenkins.get(),
+                                ACL.SYSTEM,
+                                Collections.emptyList()));
         }
     }
 } 

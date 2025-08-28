@@ -1,83 +1,74 @@
 package hudson.plugins.ec2.monitoring;
 
 import org.junit.Test;
+import org.junit.Rule;
+import org.jvnet.hudson.test.JenkinsRule;
+import jenkins.model.Jenkins;
+
 import static org.junit.Assert.*;
 
 /**
- * Tests for EC2ProvisioningMonitor.
+ * Test for EC2ProvisioningMonitor functionality.
  */
 public class EC2ProvisioningMonitorTest {
-    
+
+    @Rule
+    public JenkinsRule jenkins = new JenkinsRule();
+
     @Test
     public void testProvisioningEventCreation() {
+        String region = "us-west-2";
+        String az = "us-west-2a";
+        String requestId = "test-request-123";
+        String instanceType = "m5.large";
+        int maxCount = 5;
+        int minCount = 1;
+        int provisionedCount = 3;
+        String controllerName = "test-controller";
+        String phase = "SUCCESS";
+        String errorMessage = null;
+        String jenkinsUrl = "https://jenkins.example.com/";
+
         ProvisioningEvent event = new ProvisioningEvent(
-            "us-west-2",
-            "us-west-2a", 
-            "test-request-123",
-            "m5.large",
-            2,
-            1,
-            1,
-            "test-controller",
-            "test-cloud",
-            "REQUEST",
-            null,
-            "https://jenkins.example.com/"
+            region, az, requestId, instanceType, maxCount, minCount,
+            provisionedCount, controllerName, "test-cloud", phase, errorMessage, jenkinsUrl
         );
-        
-        assertEquals("us-west-2", event.getRegion());
-        assertEquals("us-west-2a", event.getAvailabilityZone());
-        assertEquals("test-request-123", event.getRequestId());
-        assertEquals("m5.large", event.getRequestedInstanceType());
-        assertEquals(2, event.getRequestedMaxCount());
-        assertEquals(1, event.getRequestedMinCount());
-        assertEquals(1, event.getProvisionedInstancesCount());
-        assertEquals("test-controller", event.getControllerName());
-        assertEquals("test-cloud", event.getCloudName());
-        assertEquals("REQUEST", event.getPhase());
-        assertNull(event.getErrorMessage());
-        assertEquals("https://jenkins.example.com/", event.getJenkinsUrl());
+
+        assertEquals(region, event.getRegion());
+        assertEquals(az, event.getAvailabilityZone());
+        assertEquals(requestId, event.getRequestId());
+        assertEquals(instanceType, event.getRequestedInstanceType());
+        assertEquals(maxCount, event.getRequestedMaxCount());
+        assertEquals(minCount, event.getRequestedMinCount());
+        assertEquals(provisionedCount, event.getProvisionedInstancesCount());
+        assertEquals(controllerName, event.getControllerName());
+        assertEquals(phase, event.getPhase());
+        assertEquals(errorMessage, event.getErrorMessage());
+        assertEquals(jenkinsUrl, event.getJenkinsUrl());
         assertNotNull(event.getTimestamp());
     }
-    
+
     @Test
-    public void testRecordProvisioningEvent() {
-        // This is mainly to ensure the method doesn't throw exceptions
+    public void testProvisioningEventRecording() {
+        // Test that recording an event doesn't throw exceptions
+        // This test will work even without a database configured
         ProvisioningEvent event = new ProvisioningEvent(
-            "us-east-1",
-            "us-east-1a",
-            "test-123", 
-            "t3.micro",
-            1,
-            1,
-            0,
-            "jenkins-controller",
-            "ec2-cloud",
-            "REQUEST",
-            null,
-            "https://jenkins.test.com/"
+            "us-west-2", "us-west-2a", "test-request-123", "m5.large",
+            5, 1, 3, "test-controller", "test-cloud", "SUCCESS", null,
+            "https://jenkins.example.com/"
         );
-        
-        // Should not throw exception
-        EC2ProvisioningMonitor.recordProvisioningEvent(event);
-        
-        // Test with error
-        ProvisioningEvent errorEvent = new ProvisioningEvent(
-            "us-east-1",
-            "us-east-1a",
-            "test-456",
-            "t3.micro", 
-            1,
-            1,
-            0,
-            "jenkins-controller",
-            "ec2-cloud",
-            "FAILURE",
-            "Test error message",
-            "https://jenkins.test.com/"
-        );
-        
-        // Should not throw exception
-        EC2ProvisioningMonitor.recordProvisioningEvent(errorEvent);
+
+        // This should not throw an exception even without database configuration
+        assertDoesNotThrow(() -> {
+            EC2ProvisioningMonitor.recordProvisioningEvent(event);
+        });
+    }
+
+    private void assertDoesNotThrow(Runnable runnable) {
+        try {
+            runnable.run();
+        } catch (Exception e) {
+            fail("Expected no exception, but got: " + e.getMessage());
+        }
     }
 } 

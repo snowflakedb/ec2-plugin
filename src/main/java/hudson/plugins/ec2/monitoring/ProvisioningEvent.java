@@ -3,7 +3,8 @@ package hudson.plugins.ec2.monitoring;
 import java.time.Instant;
 
 /**
- * Represents an EC2 provisioning event for monitoring purposes.
+ * Data model for AWS EC2 provisioning events to be sent to Snowhouse database.
+ * Contains all the required information for monitoring provisioning issues.
  */
 public class ProvisioningEvent {
     private final String region;
@@ -16,13 +17,13 @@ public class ProvisioningEvent {
     private final String controllerName;
     private final String cloudName;
     private final Instant timestamp;
-    private final String phase;
-    private final String errorMessage;
+    private final String phase; // "REQUEST", "SUCCESS", "FAILURE"
+    private final String errorMessage; // null if successful
     private final String jenkinsUrl;
 
     public ProvisioningEvent(String region, String availabilityZone, String requestId,
                            String requestedInstanceType, int requestedMaxCount, int requestedMinCount,
-                           int provisionedInstancesCount, String controllerName, String cloudName,
+                           int provisionedInstancesCount, String controllerName, String cloudName, 
                            String phase, String errorMessage, String jenkinsUrl) {
         this.region = region;
         this.availabilityZone = availabilityZone;
