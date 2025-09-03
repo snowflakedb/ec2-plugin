@@ -61,6 +61,11 @@ public class EC2ProvisioningMonitor {
         eventMap.put("error_message", event.getErrorMessage());
         eventMap.put("jenkins_url", event.getJenkinsUrl());
         
+        // Add detailed AZ distribution to EVENT_DATA if available
+        if (event.getAvailabilityZoneDistribution() != null && !event.getAvailabilityZoneDistribution().isEmpty()) {
+            eventMap.put("availability_zones_distribution", event.getAvailabilityZoneDistribution());
+        }
+        
         JSONObject jsonMap = new JSONObject(eventMap);
         enQueue(jsonMap.toString());
     }

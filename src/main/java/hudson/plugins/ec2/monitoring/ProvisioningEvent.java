@@ -1,6 +1,7 @@
 package hudson.plugins.ec2.monitoring;
 
 import java.time.Instant;
+import java.util.Map;
 
 /**
  * Data model for AWS EC2 provisioning events to be sent to Snowhouse database.
@@ -8,7 +9,7 @@ import java.time.Instant;
  */
 public class ProvisioningEvent {
     private final String region;
-    private final String availabilityZone;
+    private final String availabilityZone; // Comma-separated list for multiple AZs
     private final String requestId;
     private final String requestedInstanceType;
     private final int requestedMaxCount;
@@ -20,11 +21,13 @@ public class ProvisioningEvent {
     private final String phase; // "REQUEST", "SUCCESS", "FAILURE"
     private final String errorMessage; // null if successful
     private final String jenkinsUrl;
+    private final Map<String, Integer> availabilityZoneDistribution; // Detailed AZ distribution for EVENT_DATA
 
     public ProvisioningEvent(String region, String availabilityZone, String requestId,
                            String requestedInstanceType, int requestedMaxCount, int requestedMinCount,
                            int provisionedInstancesCount, String controllerName, String cloudName, 
-                           String phase, String errorMessage, String jenkinsUrl) {
+                           String phase, String errorMessage, String jenkinsUrl, 
+                           Map<String, Integer> availabilityZoneDistribution) {
         this.region = region;
         this.availabilityZone = availabilityZone;
         this.requestId = requestId;
@@ -37,7 +40,18 @@ public class ProvisioningEvent {
         this.phase = phase;
         this.errorMessage = errorMessage;
         this.jenkinsUrl = jenkinsUrl;
+        this.availabilityZoneDistribution = availabilityZoneDistribution;
         this.timestamp = Instant.now();
+    }
+
+    // Backward compatibility constructor without AZ distribution
+    public ProvisioningEvent(String region, String availabilityZone, String requestId,
+                           String requestedInstanceType, int requestedMaxCount, int requestedMinCount,
+                           int provisionedInstancesCount, String controllerName, String cloudName, 
+                           String phase, String errorMessage, String jenkinsUrl) {
+        this(region, availabilityZone, requestId, requestedInstanceType, requestedMaxCount, 
+             requestedMinCount, provisionedInstancesCount, controllerName, cloudName, 
+             phase, errorMessage, jenkinsUrl, null);
     }
 
     // Getters
@@ -54,4 +68,5 @@ public class ProvisioningEvent {
     public String getPhase() { return phase; }
     public String getErrorMessage() { return errorMessage; }
     public String getJenkinsUrl() { return jenkinsUrl; }
+    public Map<String, Integer> getAvailabilityZoneDistribution() { return availabilityZoneDistribution; }
 } 

@@ -72,6 +72,7 @@ import java.util.Set;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 import java.util.stream.Collectors;
+import java.util.Objects;
 import java.util.stream.Stream;
 import jenkins.model.Jenkins;
 import jenkins.model.JenkinsLocationConfiguration;
@@ -2189,7 +2190,7 @@ public class SlaveTemplate implements Describable<SlaveTemplate> {
                 newInstances = new ArrayList<>(response.instances());
                 
                 // Record successful provisioning
-                recordProvisioningEvent(request, "SUCCESS", null, newInstances.size());
+                recordProvisioningEvent(request, newInstances, "SUCCESS", null, newInstances.size());
             } catch (Ec2Exception e) {
                 // Record failed provisioning
                 recordProvisioningEvent(request, "FAILURE", e.getMessage(), 0);
@@ -2209,7 +2210,7 @@ public class SlaveTemplate implements Describable<SlaveTemplate> {
                     newInstances = new ArrayList<>(fallbackResponse.instances());
                     
                     // Record successful fallback provisioning
-                    recordProvisioningEvent(fallbackRequest, "SUCCESS_FALLBACK", null, newInstances.size());
+                    recordProvisioningEvent(fallbackRequest, newInstances, "SUCCESS_FALLBACK", null, newInstances.size());
                 } else {
                     throw e;
                 }
@@ -2224,7 +2225,7 @@ public class SlaveTemplate implements Describable<SlaveTemplate> {
                 newInstances = new ArrayList<>(response.instances());
                 
                 // Record successful provisioning
-                recordProvisioningEvent(request, "SUCCESS", null, newInstances.size());
+                recordProvisioningEvent(request, newInstances, "SUCCESS", null, newInstances.size());
             } catch (Ec2Exception e) {
                 // Record failed provisioning
                 recordProvisioningEvent(request, "FAILURE", e.getMessage(), 0);
@@ -3516,14 +3517,45 @@ public class SlaveTemplate implements Describable<SlaveTemplate> {
 
     /**
      * Helper method to record on-demand provisioning events for monitoring.
+     * Can optionally accept instance data for better AZ extraction.
      */
-    private void recordProvisioningEvent(RunInstancesRequest request, String phase, String errorMessage, int provisionedCount) {
+    private void recordProvisioningEvent(RunInstancesRequest request, List<Instance> instances, String phase, String errorMessage, int provisionedCount) {
         try {
             String region = getParent().getRegion();
-            String availabilityZone = request.placement() != null ? request.placement().availabilityZone() : "unknown";
             String controllerName = getControllerName();
             String cloudName = getParent().getCloudName();
             String jenkinsUrl = Jenkins.get().getRootUrl();
+            
+            // Analyze AZ distribution from actual instances if available, otherwise use request
+            String availabilityZone = null;
+            Map<String, Integer> azDistribution = null;
+            
+            if (instances != null && !instances.isEmpty()) {
+                // Create AZ distribution map from actual instances
+                azDistribution = new HashMap<>();
+                List<String> azList = new ArrayList<>();
+                
+                for (Instance instance : instances) {
+                    String az = null;
+                    if (instance.placement() != null && instance.placement().availabilityZone() != null) {
+                        az = instance.placement().availabilityZone();
+                    }
+                    azList.add(az);
+                    azDistribution.put(az, azDistribution.getOrDefault(az, 0) + 1);
+                }
+                
+                // Create comma-separated list of unique AZs (filter out nulls)
+                availabilityZone = azList.stream().filter(Objects::nonNull).distinct().sorted().collect(Collectors.joining(","));
+                if (availabilityZone.isEmpty()) {
+                    availabilityZone = null;
+                }
+                LOGGER.log(Level.INFO, "AZ distribution from instances: " + azDistribution + ", combined: " + availabilityZone);
+            } else if (request.placement() != null && request.placement().availabilityZone() != null) {
+                availabilityZone = request.placement().availabilityZone();
+                LOGGER.log(Level.INFO, "Using AZ from request: " + availabilityZone);
+            } else {
+                LOGGER.log(Level.INFO, "No AZ available from instances or request, using: null");
+            }
             
             // Use the original string value instead of the enum to preserve R8gd and other new instance types
             String instanceTypeStr = "unknown";
@@ -3544,7 +3576,7 @@ public class SlaveTemplate implements Describable<SlaveTemplate> {
             ProvisioningEvent event = new ProvisioningEvent(
                 region,
                 availabilityZone,
-                "on-demand-" + System.currentTimeMillis(), // Generate a unique request ID
+                "on-demand-" + System.currentTimeMillis(),
                 instanceTypeStr,
                 request.maxCount(),
                 request.minCount(),
@@ -3553,14 +3585,24 @@ public class SlaveTemplate implements Describable<SlaveTemplate> {
                 cloudName,
                 phase,
                 errorMessage,
-                jenkinsUrl
+                jenkinsUrl,
+                azDistribution
             );
             
             EC2ProvisioningMonitor.recordProvisioningEvent(event);
         } catch (Exception e) {
-            LOGGER.log(Level.WARNING, "Failed to record provisioning event", e);
+            LOGGER.log(Level.WARNING, "Failed to record provisioning event with instance data", e);
         }
     }
+
+    /**
+     * Helper method to record on-demand provisioning events for monitoring (backward compatibility).
+     */
+    private void recordProvisioningEvent(RunInstancesRequest request, String phase, String errorMessage, int provisionedCount) {
+        recordProvisioningEvent(request, null, phase, errorMessage, provisionedCount);
+    }
+
+
 
     /**
      * Helper method to record spot instance provisioning events for monitoring.
@@ -3570,7 +3612,7 @@ public class SlaveTemplate implements Describable<SlaveTemplate> {
             String region = getParent().getRegion();
             String availabilityZone = request.launchSpecification() != null && 
                                     request.launchSpecification().placement() != null ? 
-                                    request.launchSpecification().placement().availabilityZone() : "unknown";
+                                    request.launchSpecification().placement().availabilityZone() : null;
             String controllerName = getControllerName();
             String cloudName = getParent().getCloudName();
             String jenkinsUrl = Jenkins.get().getRootUrl();
@@ -3733,3 +3775,4 @@ public class SlaveTemplate implements Describable<SlaveTemplate> {
         return "jenkins-controller";
     }
 }
+
