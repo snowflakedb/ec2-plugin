@@ -1,12 +1,15 @@
 #!/bin/bash
 
-# Script to update plugin version with format: {timestamp}-{branchName}
+# Script to update plugin version with format: {timestamp}-{branchName}-{headCommit}
 # Usage: 
 #   ./update-version.sh date      # Uses YYYYMMDD format
 #   ./update-version.sh datetime  # Uses YYYYMMDDHHMMSS format
 
 # Get current branch name
 BRANCH_NAME=$(git branch --show-current)
+
+# Get short commit hash (7 characters)
+COMMIT_HASH=$(git rev-parse --short=7 HEAD)
 
 # Generate timestamp based on argument
 if [ "$1" = "datetime" ]; then
@@ -25,7 +28,7 @@ else
 fi
 
 # Create new version
-NEW_VERSION="${TIMESTAMP}-${BRANCH_NAME}"
+NEW_VERSION="${TIMESTAMP}-${BRANCH_NAME}-${COMMIT_HASH}"
 echo "New version: $NEW_VERSION"
 
 # Update pom.xml
