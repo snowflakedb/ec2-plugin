@@ -3616,10 +3616,43 @@ public class SlaveTemplate implements Describable<SlaveTemplate> {
      * Get the controller name with multiple fallback strategies.
      */
     private String getControllerName() {
-        // Try environment variable first
+        // Try Jenkins Global Node Properties first (for Jenkins UI configured env vars)
+        try {
+            hudson.slaves.EnvironmentVariablesNodeProperty envProperty = Jenkins.get()
+                .getGlobalNodeProperties()
+                .get(hudson.slaves.EnvironmentVariablesNodeProperty.class);
+            
+            if (envProperty != null) {
+                String controllerName = envProperty.getEnvVars().get("JENKINS_BASE_HOSTNAME_SHORT");
+                if (controllerName != null && !controllerName.trim().isEmpty()) {
+                    LOGGER.log(Level.INFO, "Found controller name from Jenkins Global Properties: " + controllerName.trim());
+                    return controllerName.trim();
+                }
+            }
+        } catch (Exception e) {
+            LOGGER.log(Level.FINE, "Could not access Jenkins Global Properties: " + e.getMessage());
+        }
+
+        // Try Jenkins master computer environment
+        try {
+            hudson.model.Computer masterComputer = Jenkins.get().toComputer();
+            if (masterComputer != null) {
+                hudson.EnvVars envVars = masterComputer.getEnvironment();
+                String controllerName = envVars.get("JENKINS_BASE_HOSTNAME_SHORT");
+                if (controllerName != null && !controllerName.trim().isEmpty()) {
+                    LOGGER.log(Level.INFO, "Found controller name from Jenkins Master Environment: " + controllerName.trim());
+                    return controllerName.trim();
+                }
+            }
+        } catch (Exception e) {
+            LOGGER.log(Level.FINE, "Could not access Jenkins Master Environment: " + e.getMessage());
+        }
+
+        // Try OS environment variable
         String controllerName = System.getenv("JENKINS_BASE_HOSTNAME_SHORT");
+        LOGGER.log(Level.INFO, "System.getenv JENKINS_BASE_HOSTNAME_SHORT = " + controllerName);
         if (controllerName != null && !controllerName.trim().isEmpty()) {
-            LOGGER.log(Level.FINE, "Found controller name from JENKINS_BASE_HOSTNAME_SHORT: " + controllerName.trim());
+            LOGGER.log(Level.INFO, "Found controller name from OS Environment Variable: " + controllerName.trim());
             return controllerName.trim();
         }
 
@@ -3629,11 +3662,12 @@ public class SlaveTemplate implements Describable<SlaveTemplate> {
             if (envVars != null) {
                 controllerName = envVars.get("JENKINS_BASE_HOSTNAME_SHORT");
                 if (controllerName != null && !controllerName.trim().isEmpty()) {
+                    LOGGER.log(Level.INFO, "Found controller name from Jenkins EnvVars.masterEnvVars: " + controllerName.trim());
                     return controllerName.trim();
                 }
             }
         } catch (Exception e) {
-            // Ignore if EnvVars not available
+            LOGGER.log(Level.FINE, "Could not access Jenkins EnvVars.masterEnvVars: " + e.getMessage());
         }
 
         // Try other environment variables
@@ -3692,9 +3726,10 @@ public class SlaveTemplate implements Describable<SlaveTemplate> {
         }
 
         // Final fallback - also log what env vars we do have for debugging
-        LOGGER.log(Level.WARNING, "Could not determine controller name, using fallback: jenkins-controller");
-        LOGGER.log(Level.FINE, "Available env vars: HOSTNAME=" + System.getenv("HOSTNAME") + 
-                               ", COMPUTERNAME=" + System.getenv("COMPUTERNAME"));
+        LOGGER.log(Level.WARNING, "Could not determine controller name from any source, using fallback: jenkins-controller");
+        LOGGER.log(Level.INFO, "Available OS env vars: HOSTNAME=" + System.getenv("HOSTNAME") + 
+                               ", COMPUTERNAME=" + System.getenv("COMPUTERNAME") +
+                               ", JENKINS_BASE_HOSTNAME_SHORT=" + System.getenv("JENKINS_BASE_HOSTNAME_SHORT"));
         return "jenkins-controller";
     }
 }
