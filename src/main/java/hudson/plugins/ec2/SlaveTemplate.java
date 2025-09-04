@@ -1933,7 +1933,7 @@ public class SlaveTemplate implements Describable<SlaveTemplate> {
                 .imageId(image.imageId())
                 .minCount(1)
                 .maxCount(number)
-                .instanceType(InstanceType.fromValue(type))
+                .instanceType(type)
                 .ebsOptimized(ebsOptimized)
                 .monitoring(RunInstancesMonitoringEnabled.builder()
                         .enabled(monitoring)
