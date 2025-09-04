@@ -32,7 +32,7 @@ THE SOFTWARE.
   </parent>
 
   <artifactId>ec2</artifactId>
-  <version>${changelist}</version>
+  <version>20250904-ec2-snowflake-monitoring-clean-c06dcfb</version>
   <packaging>hpi</packaging>
   <name>Amazon EC2 plugin</name>
   <description>This is a Jenkins plugin to support ephemeral Jenkins agents on Amazon EC2 or other EC2-compatible clouds</description>
@@ -89,7 +89,7 @@ THE SOFTWARE.
     <!-- Default changelist for local development - will be overridden by build script -->
     <!-- Format: {date}-{branchName}-{commitHash} -->
     <!-- Use YYYYMMDD for date only, YYYYMMDDHHMMSS for full datetime -->
-    <changelist>20250904-ec2-snowflake-monitoring-clean-2ad7cf8</changelist>
+    <changelist>20250904-ec2-snowflake-monitoring-clean-c06dcfb</changelist>
     <!-- https://www.jenkins.io/doc/developer/plugin-development/choosing-jenkins-baseline/ -->
     <jenkins.baseline>2.479</jenkins.baseline>
     <jenkins.version>${jenkins.baseline}.3</jenkins.version>
@@ -292,24 +292,27 @@ THE SOFTWARE.
 
   <build>
     <plugins>
-      <plugin>
-        <groupId>org.codehaus.mojo</groupId>
-        <artifactId>exec-maven-plugin</artifactId>
-        <version>3.1.0</version>
-        <executions>
-          <execution>
-            <id>update-version</id>
-            <phase>initialize</phase>
-            <goals>
-              <goal>exec</goal>
-            </goals>
-            <configuration>
-              <executable>./update-version.sh</executable>
-              <workingDirectory>${project.basedir}</workingDirectory>
-            </configuration>
-          </execution>
-        </executions>
-      </plugin>
+            <plugin>
+                <groupId>org.codehaus.mojo</groupId>
+                <artifactId>exec-maven-plugin</artifactId>
+                <version>3.1.0</version>
+                <executions>
+                    <execution>
+                        <id>update-version</id>
+                        <phase>initialize</phase>
+                        <goals>
+                            <goal>exec</goal>
+                        </goals>
+                        <configuration>
+                            <executable>./jenkins_build.sh</executable>
+                            <arguments>
+                                <argument>update</argument>
+                            </arguments>
+                            <workingDirectory>${project.basedir}</workingDirectory>
+                        </configuration>
+                    </execution>
+                </executions>
+            </plugin>
       <plugin>
         <groupId>org.jenkins-ci.tools</groupId>
         <artifactId>maven-hpi-plugin</artifactId>
