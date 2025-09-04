@@ -2183,9 +2183,6 @@ public class SlaveTemplate implements Describable<SlaveTemplate> {
             riRequestBuilder.instanceMarketOptions(instanceMarketOptionsRequestBuilder.build());
             RunInstancesRequest request = riRequestBuilder.build();
             try {
-                // Record provisioning attempt
-                recordProvisioningEvent(request, "REQUEST", null, 0);
-                
                 RunInstancesResponse response = ec2.runInstances(request);
                 newInstances = new ArrayList<>(response.instances());
                 
@@ -2203,9 +2200,6 @@ public class SlaveTemplate implements Describable<SlaveTemplate> {
                     riRequestBuilder.instanceMarketOptions(instanceMarketOptionsRequestBuilder.build());
                     
                     RunInstancesRequest fallbackRequest = riRequestBuilder.build();
-                    // Record fallback attempt
-                    recordProvisioningEvent(fallbackRequest, "REQUEST_FALLBACK", null, 0);
-                    
                     RunInstancesResponse fallbackResponse = ec2.runInstances(fallbackRequest);
                     newInstances = new ArrayList<>(fallbackResponse.instances());
                     
@@ -2218,9 +2212,6 @@ public class SlaveTemplate implements Describable<SlaveTemplate> {
         } else {
             RunInstancesRequest request = riRequestBuilder.build();
             try {
-                // Record provisioning attempt
-                recordProvisioningEvent(request, "REQUEST", null, 0);
-                
                 RunInstancesResponse response = ec2.runInstances(request);
                 newInstances = new ArrayList<>(response.instances());
                 
@@ -2549,9 +2540,6 @@ public class SlaveTemplate implements Describable<SlaveTemplate> {
             RequestSpotInstancesResponse reqResult;
             try {
                 RequestSpotInstancesRequest spotRequest = spotRequestBuilder.build();
-                // Record spot provisioning attempt
-                recordSpotProvisioningEvent(spotRequest, "REQUEST", null, 0);
-                
                 // Make the request for a new Spot instance
                 reqResult = ec2.requestSpotInstances(spotRequest);
                 
