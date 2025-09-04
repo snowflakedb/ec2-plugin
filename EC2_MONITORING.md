@@ -1,7 +1,3 @@
-# EC2 Provisioning Monitoring
-
-This feature provides real-time monitoring for AWS EC2 node provisioning issues by integrating with Snowhouse database using JDBC.
-
 ## Overview
 
 The monitoring system captures detailed information about EC2 provisioning attempts and sends them to a Snowhouse database for real-time analysis and alerting. This helps identify provisioning issues faster than relying on application logs and CloudTrail.
@@ -25,10 +21,8 @@ For each provisioning attempt, the following information is recorded:
 
 ## Database Schema
 
-The monitoring system creates the following table in Snowhouse:
-
 ```sql
-CREATE TABLE IF NOT EXISTS EC2_PROVISIONING_EVENTS (
+CREATE TABLE IF NOT EXISTS INTERNAL_TRIAGE_AUTOMATION.PUBLIC.EC2_PROVISIONING_EVENTS (
     ID NUMBER AUTOINCREMENT,
     CREATE_TIME TIMESTAMP_NTZ,
     REGION VARCHAR(50),
@@ -46,19 +40,6 @@ CREATE TABLE IF NOT EXISTS EC2_PROVISIONING_EVENTS (
     PRIMARY KEY (ID)
 );
 ```
-
-## Configuration
-
-1. **Install Database Plugin**: The monitoring requires the Jenkins Database plugin to be installed.
-
-2. **Configure Snowhouse Database**: In Jenkins system configuration, add a new Snowflake database connection with:
-   - Account Name: Your Snowflake account
-   - Database: Target database name
-   - Warehouse: Snowflake warehouse to use
-   - Credentials: Username/password credentials for Snowflake
-   - Timeouts: Network, query, and login timeouts
-
-3. **Set as Global Database**: Configure the Snowflake connection as the global database in Jenkins.
 
 ## Event Flow
 
