@@ -25,12 +25,15 @@ THE SOFTWARE.
     <f:checkbox />
   </f:entry>
 
-  <f:optionalBlock name="useBidPrice" title="Set bid price" inline="true" checked="${h.defaultToTrue(instance.useBidPrice)}" field="useBidPrice">
-    <f:validateButton title="${%Check Current Spot Price}" progress="${%Checking...}" method="currentSpotPrice" with="useInstanceProfileForCredentials,credentialsId,region,altEC2Endpoint,type,zone,roleArn,roleSessionName,ami" />
-    <f:entry title="${%Spot Max Bid Price}" field="spotMaxBidPrice">
-      <f:textbox />
-    </f:entry>
-  </f:optionalBlock>
+  <f:entry title="${%Use Bid Price}" field="useBidPrice">
+    <f:checkbox default="true"/>
+  </f:entry>
+
+  <f:validateButton title="${%Check Current Spot Price}" progress="${%Checking...}" method="currentSpotPrice" with="useInstanceProfileForCredentials,credentialsId,region,altEC2Endpoint,type,zone,roleArn,roleSessionName,ami" />
+  
+  <f:entry title="${%Spot Max Bid Price}" field="spotMaxBidPrice">
+    <f:textbox />
+  </f:entry>
 
   <f:entry title="${%Spot Block Reservation Duration}" field="spotBlockReservationDuration">
     <f:number />

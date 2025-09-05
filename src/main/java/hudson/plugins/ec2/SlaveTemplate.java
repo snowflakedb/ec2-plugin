@@ -42,6 +42,8 @@ import hudson.plugins.ec2.util.InstanceTypeCompat;
 import hudson.plugins.ec2.util.KeyPair;
 import hudson.plugins.ec2.util.MinimumInstanceChecker;
 import hudson.plugins.ec2.util.MinimumNumberOfInstancesTimeRangeConfig;
+import hudson.plugins.ec2.monitoring.EC2ProvisioningMonitor;
+import hudson.plugins.ec2.monitoring.ProvisioningEvent;
 import hudson.security.Permission;
 import hudson.slaves.NodeProperty;
 import hudson.slaves.NodePropertyDescriptor;
@@ -70,6 +72,7 @@ import java.util.Set;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 import java.util.stream.Collectors;
+import java.util.Objects;
 import java.util.stream.Stream;
 import jenkins.model.Jenkins;
 import jenkins.model.JenkinsLocationConfiguration;
@@ -128,6 +131,7 @@ import software.amazon.awssdk.services.ec2.model.Reservation;
 import software.amazon.awssdk.services.ec2.model.ResourceType;
 import software.amazon.awssdk.services.ec2.model.RunInstancesMonitoringEnabled;
 import software.amazon.awssdk.services.ec2.model.RunInstancesRequest;
+import software.amazon.awssdk.services.ec2.model.RunInstancesResponse;
 import software.amazon.awssdk.services.ec2.model.SecurityGroup;
 import software.amazon.awssdk.services.ec2.model.ShutdownBehavior;
 import software.amazon.awssdk.services.ec2.model.SpotInstanceRequest;
@@ -2177,27 +2181,46 @@ public class SlaveTemplate implements Describable<SlaveTemplate> {
                 instanceMarketOptionsRequestBuilder.spotOptions(spotOptions);
             }
             riRequestBuilder.instanceMarketOptions(instanceMarketOptionsRequestBuilder.build());
+            RunInstancesRequest request = riRequestBuilder.build();
             try {
-                newInstances = new ArrayList<>(
-                        ec2.runInstances(riRequestBuilder.build()).instances());
+                RunInstancesResponse response = ec2.runInstances(request);
+                newInstances = new ArrayList<>(response.instances());
+                
+                // Record successful provisioning
+                recordProvisioningEvent(request, newInstances, "SUCCESS", null, newInstances.size());
             } catch (Ec2Exception e) {
+                // Record failed provisioning
+                recordProvisioningEvent(request, "FAILURE", e.getMessage(), 0);
+                
                 if (fallbackSpotToOndemand
                         && "InsufficientInstanceCapacity"
                                 .equals(e.awsErrorDetails().errorCode())) {
                     logProvisionInfo(
                             "There is no spot capacity available matching your request, falling back to on-demand instance.");
                     riRequestBuilder.instanceMarketOptions(instanceMarketOptionsRequestBuilder.build());
-                    newInstances = new ArrayList<>(
-                            ec2.runInstances(riRequestBuilder.build()).instances());
+                    
+                    RunInstancesRequest fallbackRequest = riRequestBuilder.build();
+                    RunInstancesResponse fallbackResponse = ec2.runInstances(fallbackRequest);
+                    newInstances = new ArrayList<>(fallbackResponse.instances());
+                    
+                    // Record successful fallback provisioning
+                    recordProvisioningEvent(fallbackRequest, newInstances, "SUCCESS_FALLBACK", null, newInstances.size());
                 } else {
                     throw e;
                 }
             }
         } else {
+            RunInstancesRequest request = riRequestBuilder.build();
             try {
-                newInstances = new ArrayList<>(
-                        ec2.runInstances(riRequestBuilder.build()).instances());
+                RunInstancesResponse response = ec2.runInstances(request);
+                newInstances = new ArrayList<>(response.instances());
+                
+                // Record successful provisioning
+                recordProvisioningEvent(request, newInstances, "SUCCESS", null, newInstances.size());
             } catch (Ec2Exception e) {
+                // Record failed provisioning
+                recordProvisioningEvent(request, "FAILURE", e.getMessage(), 0);
+                
                 logProvisionInfo("Jenkins attempted to reserve "
                         + riRequest.maxCount()
                         + " instances and received this EC2 exception: " + e.getMessage());
@@ -2452,7 +2475,7 @@ public class SlaveTemplate implements Describable<SlaveTemplate> {
                     RequestSpotLaunchSpecification.builder();
 
             launchSpecificationBuilder.imageId(imageId);
-            launchSpecificationBuilder.instanceType(type);
+            launchSpecificationBuilder.instanceType(InstanceType.fromValue(type));
             launchSpecificationBuilder.ebsOptimized(ebsOptimized);
             launchSpecificationBuilder.monitoring(
                     RunInstancesMonitoringEnabled.builder().enabled(monitoring).build());
@@ -2492,7 +2515,7 @@ public class SlaveTemplate implements Describable<SlaveTemplate> {
 
             launchSpecificationBuilder.userData(userDataString);
             launchSpecificationBuilder.keyName(keyPair.getKeyPairInfo().keyName());
-            launchSpecificationBuilder.instanceType(type);
+            launchSpecificationBuilder.instanceType(InstanceType.fromValue(type));
 
             netBuilder.associatePublicIpAddress(getAssociatePublicIp());
             netBuilder.deviceIndex(0);
@@ -2516,9 +2539,17 @@ public class SlaveTemplate implements Describable<SlaveTemplate> {
 
             RequestSpotInstancesResponse reqResult;
             try {
+                RequestSpotInstancesRequest spotRequest = spotRequestBuilder.build();
                 // Make the request for a new Spot instance
-                reqResult = ec2.requestSpotInstances(spotRequestBuilder.build());
+                reqResult = ec2.requestSpotInstances(spotRequest);
+                
+                // Record successful spot provisioning
+                recordSpotProvisioningEvent(spotRequest, "SUCCESS", null, reqResult.spotInstanceRequests().size());
             } catch (Ec2Exception e) {
+                RequestSpotInstancesRequest spotRequest = spotRequestBuilder.build();
+                // Record failed spot provisioning
+                recordSpotProvisioningEvent(spotRequest, "FAILURE", e.getMessage(), 0);
+                
                 if (spotConfig.getFallbackToOndemand()
                         && "MaxSpotInstanceCountExceeded"
                                 .equals(e.awsErrorDetails().errorCode())) {
@@ -3471,4 +3502,265 @@ public class SlaveTemplate implements Describable<SlaveTemplate> {
             return FormValidation.ok();
         }
     }
+
+    /**
+     * Helper method to record on-demand provisioning events for monitoring.
+     * Can optionally accept instance data for better AZ extraction.
+     */
+    private void recordProvisioningEvent(RunInstancesRequest request, List<Instance> instances, String phase, String errorMessage, int provisionedCount) {
+        try {
+            String region = getParent().getRegion();
+            String controllerName = getControllerName();
+            String cloudName = getParent().getCloudName();
+            String jenkinsUrl = Jenkins.get().getRootUrl();
+            
+            // Analyze AZ distribution from actual instances if available, otherwise use request
+            String availabilityZone = null;
+            Map<String, Integer> azDistribution = null;
+            
+            if (instances != null && !instances.isEmpty()) {
+                // Create AZ distribution map from actual instances
+                azDistribution = new HashMap<>();
+                List<String> azList = new ArrayList<>();
+                
+                for (Instance instance : instances) {
+                    String az = null;
+                    if (instance.placement() != null && instance.placement().availabilityZone() != null) {
+                        az = instance.placement().availabilityZone();
+                    }
+                    azList.add(az);
+                    azDistribution.put(az, azDistribution.getOrDefault(az, 0) + 1);
+                }
+                
+                // Create comma-separated list of unique AZs (filter out nulls)
+                availabilityZone = azList.stream().filter(Objects::nonNull).distinct().sorted().collect(Collectors.joining(","));
+                if (availabilityZone.isEmpty()) {
+                    availabilityZone = null;
+                }
+                LOGGER.log(Level.INFO, "AZ distribution from instances: " + azDistribution + ", combined: " + availabilityZone);
+            } else if (request.placement() != null && request.placement().availabilityZone() != null) {
+                availabilityZone = request.placement().availabilityZone();
+                LOGGER.log(Level.INFO, "Using AZ from request: " + availabilityZone);
+            } else {
+                LOGGER.log(Level.INFO, "No AZ available from instances or request, using: null");
+            }
+            
+            // Use the original string value instead of the enum to preserve R8gd and other new instance types
+            String instanceTypeStr = "unknown";
+            if (request.instanceType() != null) {
+                if (request.instanceType() == InstanceType.UNKNOWN_TO_SDK_VERSION) {
+                    // For unknown instance types, use the original string value
+                    instanceTypeStr = this.type; // Use the original string from SlaveTemplate
+                    LOGGER.log(Level.INFO, "Using fallback instance type string for unknown SDK type: " + instanceTypeStr);
+                } else {
+                    instanceTypeStr = request.instanceType().toString();
+                    LOGGER.log(Level.FINE, "Using SDK recognized instance type: " + instanceTypeStr);
+                }
+            } else {
+                LOGGER.log(Level.WARNING, "Request instance type is null, using 'unknown'");
+            }
+            LOGGER.log(Level.FINE, "Final instance type for monitoring: " + instanceTypeStr);
+            
+            ProvisioningEvent event = new ProvisioningEvent(
+                region,
+                availabilityZone,
+                "on-demand-" + System.currentTimeMillis(),
+                instanceTypeStr,
+                request.maxCount(),
+                request.minCount(),
+                provisionedCount,
+                controllerName,
+                cloudName,
+                phase,
+                errorMessage,
+                jenkinsUrl,
+                azDistribution
+            );
+            
+            EC2ProvisioningMonitor.recordProvisioningEvent(event);
+        } catch (Exception e) {
+            LOGGER.log(Level.WARNING, "Failed to record provisioning event with instance data", e);
+        }
+    }
+
+    /**
+     * Helper method to record on-demand provisioning events for monitoring (backward compatibility).
+     */
+    private void recordProvisioningEvent(RunInstancesRequest request, String phase, String errorMessage, int provisionedCount) {
+        recordProvisioningEvent(request, null, phase, errorMessage, provisionedCount);
+    }
+
+
+
+    /**
+     * Helper method to record spot instance provisioning events for monitoring.
+     */
+    private void recordSpotProvisioningEvent(RequestSpotInstancesRequest request, String phase, String errorMessage, int provisionedCount) {
+        try {
+            String region = getParent().getRegion();
+            String availabilityZone = request.launchSpecification() != null && 
+                                    request.launchSpecification().placement() != null ? 
+                                    request.launchSpecification().placement().availabilityZone() : null;
+            String controllerName = getControllerName();
+            String cloudName = getParent().getCloudName();
+            String jenkinsUrl = Jenkins.get().getRootUrl();
+            
+            // Use the original string value instead of the enum to preserve R8gd and other new instance types
+            String instanceTypeStr = "unknown";
+            if (request.launchSpecification() != null && request.launchSpecification().instanceType() != null) {
+                if (request.launchSpecification().instanceType() == InstanceType.UNKNOWN_TO_SDK_VERSION) {
+                    // For unknown instance types, use the original string value
+                    instanceTypeStr = this.type; // Use the original string from SlaveTemplate
+                    LOGGER.log(Level.INFO, "Using fallback instance type string for unknown SDK type (spot): " + instanceTypeStr);
+                } else {
+                    instanceTypeStr = request.launchSpecification().instanceType().toString();
+                    LOGGER.log(Level.FINE, "Using SDK recognized instance type (spot): " + instanceTypeStr);
+                }
+            } else {
+                LOGGER.log(Level.WARNING, "Spot request launch specification or instance type is null, using 'unknown'");
+            }
+            LOGGER.log(Level.FINE, "Final instance type for monitoring (spot): " + instanceTypeStr);
+            
+            ProvisioningEvent event = new ProvisioningEvent(
+                region,
+                availabilityZone,
+                "spot-" + System.currentTimeMillis(), // Generate a unique request ID
+                instanceTypeStr,
+                request.instanceCount(), // For spot instances, instanceCount is both min and max
+                request.instanceCount(),
+                provisionedCount,
+                controllerName,
+                cloudName,
+                phase,
+                errorMessage,
+                jenkinsUrl
+            );
+            
+            EC2ProvisioningMonitor.recordProvisioningEvent(event);
+        } catch (Exception e) {
+            LOGGER.log(Level.WARNING, "Failed to record spot provisioning event", e);
+        }
+    }
+
+    /**
+     * Get the controller name with multiple fallback strategies.
+     */
+    private String getControllerName() {
+        // Try Jenkins Global Node Properties first (for Jenkins UI configured env vars)
+        try {
+            hudson.slaves.EnvironmentVariablesNodeProperty envProperty = Jenkins.get()
+                .getGlobalNodeProperties()
+                .get(hudson.slaves.EnvironmentVariablesNodeProperty.class);
+            
+            if (envProperty != null) {
+                String controllerName = envProperty.getEnvVars().get("JENKINS_BASE_HOSTNAME_SHORT");
+                if (controllerName != null && !controllerName.trim().isEmpty()) {
+                    LOGGER.log(Level.INFO, "Found controller name from Jenkins Global Properties: " + controllerName.trim());
+                    return controllerName.trim();
+                }
+            }
+        } catch (Exception e) {
+            LOGGER.log(Level.FINE, "Could not access Jenkins Global Properties: " + e.getMessage());
+        }
+
+        // Try Jenkins master computer environment
+        try {
+            hudson.model.Computer masterComputer = Jenkins.get().toComputer();
+            if (masterComputer != null) {
+                hudson.EnvVars envVars = masterComputer.getEnvironment();
+                String controllerName = envVars.get("JENKINS_BASE_HOSTNAME_SHORT");
+                if (controllerName != null && !controllerName.trim().isEmpty()) {
+                    LOGGER.log(Level.INFO, "Found controller name from Jenkins Master Environment: " + controllerName.trim());
+                    return controllerName.trim();
+                }
+            }
+        } catch (Exception e) {
+            LOGGER.log(Level.FINE, "Could not access Jenkins Master Environment: " + e.getMessage());
+        }
+
+        // Try OS environment variable
+        String controllerName = System.getenv("JENKINS_BASE_HOSTNAME_SHORT");
+        LOGGER.log(Level.INFO, "System.getenv JENKINS_BASE_HOSTNAME_SHORT = " + controllerName);
+        if (controllerName != null && !controllerName.trim().isEmpty()) {
+            LOGGER.log(Level.INFO, "Found controller name from OS Environment Variable: " + controllerName.trim());
+            return controllerName.trim();
+        }
+
+        // Try Jenkins EnvVars (might be available when System.getenv is not)
+        try {
+            java.util.Map<String, String> envVars = hudson.EnvVars.masterEnvVars;
+            if (envVars != null) {
+                controllerName = envVars.get("JENKINS_BASE_HOSTNAME_SHORT");
+                if (controllerName != null && !controllerName.trim().isEmpty()) {
+                    LOGGER.log(Level.INFO, "Found controller name from Jenkins EnvVars.masterEnvVars: " + controllerName.trim());
+                    return controllerName.trim();
+                }
+            }
+        } catch (Exception e) {
+            LOGGER.log(Level.FINE, "Could not access Jenkins EnvVars.masterEnvVars: " + e.getMessage());
+        }
+
+        // Try other environment variables
+        controllerName = System.getenv("HOSTNAME");
+        if (controllerName != null && !controllerName.trim().isEmpty()) {
+            return controllerName.trim();
+        }
+
+        controllerName = System.getenv("COMPUTERNAME");
+        if (controllerName != null && !controllerName.trim().isEmpty()) {
+            return controllerName.trim();
+        }
+
+        // Try system properties
+        try {
+            controllerName = System.getProperty("jenkins.hostname");
+            if (controllerName != null && !controllerName.trim().isEmpty()) {
+                return controllerName.trim();
+            }
+        } catch (Exception e) {
+            // Ignore security exceptions
+        }
+
+        // Try to extract from Jenkins URL
+        try {
+            String jenkinsUrl = Jenkins.get().getRootUrl();
+            if (jenkinsUrl != null) {
+                java.net.URL url = new java.net.URL(jenkinsUrl);
+                String host = url.getHost();
+                if (host != null && !host.trim().isEmpty()) {
+                    // Remove domain suffix if present
+                    int dotIndex = host.indexOf('.');
+                    if (dotIndex > 0) {
+                        host = host.substring(0, dotIndex);
+                    }
+                    return host.trim();
+                }
+            }
+        } catch (Exception e) {
+            // Ignore URL parsing exceptions
+        }
+
+        // Try Java system hostname
+        try {
+            controllerName = java.net.InetAddress.getLocalHost().getHostName();
+            if (controllerName != null && !controllerName.trim().isEmpty()) {
+                // Remove domain suffix if present
+                int dotIndex = controllerName.indexOf('.');
+                if (dotIndex > 0) {
+                    controllerName = controllerName.substring(0, dotIndex);
+                }
+                return controllerName.trim();
+            }
+        } catch (Exception e) {
+            // Ignore network exceptions
+        }
+
+        // Final fallback - also log what env vars we do have for debugging
+        LOGGER.log(Level.WARNING, "Could not determine controller name from any source, using fallback: jenkins-controller");
+        LOGGER.log(Level.INFO, "Available OS env vars: HOSTNAME=" + System.getenv("HOSTNAME") + 
+                               ", COMPUTERNAME=" + System.getenv("COMPUTERNAME") +
+                               ", JENKINS_BASE_HOSTNAME_SHORT=" + System.getenv("JENKINS_BASE_HOSTNAME_SHORT"));
+        return "jenkins-controller";
+    }
 }
+
