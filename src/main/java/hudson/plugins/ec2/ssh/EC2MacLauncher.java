@@ -126,7 +126,7 @@ public class EC2MacLauncher extends EC2SSHLauncher {
         final String javaPath = node.javaPath;
         String tmpDir = (Util.fixEmptyAndTrim(node.tmpDir) != null ? node.tmpDir : "/tmp");
 
-        try (SshClient client = SSHClientHelper.getInstance().setupSshClient(computer)) {
+        try (SshClient client = SshClient.setUpDefaultClient()) {
             boolean isBootstrapped = bootstrap(computer, listener, template);
             if (!isBootstrapped) {
                 logWarning(computer, listener, "bootstrapresult failed");
