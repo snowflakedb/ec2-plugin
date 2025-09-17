@@ -31,7 +31,6 @@ import hudson.plugins.ec2.EC2Readiness;
 import hudson.plugins.ec2.SlaveTemplate;
 import hudson.plugins.ec2.util.KeyHelper;
 import hudson.plugins.ec2.util.KeyPair;
-import hudson.plugins.ec2.util.SSHClientHelper;
 import hudson.slaves.CommandLauncher;
 import hudson.slaves.ComputerLauncher;
 import java.io.File;
