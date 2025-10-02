@@ -89,7 +89,7 @@ THE SOFTWARE.
     <!-- Default changelist for local development - will be overridden by build script -->
     <!-- Format: {date}-{branchName}-{commitHash} -->
     <!-- Use YYYYMMDD for date only, YYYYMMDDHHMMSS for full datetime -->
-    <changelist>20250929-nthirumoorthy-fix-cpu-peg-issue-864a26e</changelist>
+    <changelist>20250929-nthirumoorthy-fix-cpu-peg-issue-bbd0ce2</changelist>
     <!-- https://www.jenkins.io/doc/developer/plugin-development/choosing-jenkins-baseline/ -->
     <jenkins.baseline>2.479</jenkins.baseline>
     <jenkins.version>${jenkins.baseline}.3</jenkins.version>
