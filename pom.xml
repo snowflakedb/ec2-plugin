@@ -32,7 +32,7 @@ THE SOFTWARE.
   </parent>
 
   <artifactId>ec2</artifactId>
-  <version>20250904-ec2-snowflake-monitoring-clean-c06dcfb</version>
+  <version>${changelist}</version>
   <packaging>hpi</packaging>
   <name>Amazon EC2 plugin</name>
   <description>This is a Jenkins plugin to support ephemeral Jenkins agents on Amazon EC2 or other EC2-compatible clouds</description>
@@ -89,7 +89,7 @@ THE SOFTWARE.
     <!-- Default changelist for local development - will be overridden by build script -->
     <!-- Format: {date}-{branchName}-{commitHash} -->
     <!-- Use YYYYMMDD for date only, YYYYMMDDHHMMSS for full datetime -->
-    <changelist>20250904-ec2-snowflake-monitoring-clean-83d97fb</changelist>
+    <changelist>20250929-nthirumoorthy-fix-cpu-peg-issue-bbd0ce2</changelist>
     <!-- https://www.jenkins.io/doc/developer/plugin-development/choosing-jenkins-baseline/ -->
     <jenkins.baseline>2.479</jenkins.baseline>
     <jenkins.version>${jenkins.baseline}.3</jenkins.version>

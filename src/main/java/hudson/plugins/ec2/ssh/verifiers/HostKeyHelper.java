@@ -31,8 +31,11 @@ import hudson.model.Computer;
 import hudson.model.Node;
 import java.io.File;
 import java.io.IOException;
+import java.lang.ref.WeakReference;
 import java.util.Map;
-import java.util.WeakHashMap;
+import java.util.concurrent.ConcurrentHashMap;
+import java.util.logging.Level;
+import java.util.logging.Logger;
 import jenkins.model.Jenkins;
 
 /**
@@ -45,9 +48,12 @@ import jenkins.model.Jenkins;
  */
 public final class HostKeyHelper {
 
+    private static final Logger LOGGER = Logger.getLogger(HostKeyHelper.class.getName());
     private static final HostKeyHelper INSTANCE = new HostKeyHelper();
 
-    private final Map<Computer, HostKey> cache = new WeakHashMap<>();
+    // Thread-safe cache using ConcurrentHashMap with WeakReference values
+    // This provides thread safety while maintaining GC-friendly behavior like WeakHashMap
+    private final Map<Computer, WeakReference<HostKey>> cache = new ConcurrentHashMap<>();
 
     private HostKeyHelper() {
         super();
@@ -65,18 +71,36 @@ public final class HostKeyHelper {
      * @throws IOException if the host key can not be read from storage
      */
     public HostKey getHostKey(Computer host) throws IOException {
-        HostKey key = cache.get(host);
-        if (null == key) {
-            File hostKeyFile = getSshHostKeyFile(host.getNode());
-            if (hostKeyFile.exists()) {
-                XmlFile xmlHostKeyFile = new XmlFile(hostKeyFile);
-                key = (HostKey) xmlHostKeyFile.read();
+        // Fast path: check cache first (thread-safe with ConcurrentHashMap)
+        WeakReference<HostKey> weakRef = cache.get(host);
+        if (weakRef != null) {
+            HostKey cachedKey = weakRef.get();
+            if (cachedKey != null) {
+                return cachedKey;
             } else {
-                key = null;
+                // WeakReference was cleared by GC, remove stale entry
+                cache.remove(host, weakRef);
             }
-            cache.put(host, key);
         }
-        return key;
+        
+        // Slow path: load from disk (outside synchronization for performance)
+        File hostKeyFile = getSshHostKeyFile(host.getNode());
+        HostKey loadedKey = null;
+        
+        if (hostKeyFile.exists()) {
+            XmlFile xmlHostKeyFile = new XmlFile(hostKeyFile);
+            loadedKey = (HostKey) xmlHostKeyFile.read();
+            LOGGER.log(Level.FINE, "Loaded host key from disk for computer: {0}", host.getName());
+        } else {
+            LOGGER.log(Level.FINE, "No host key file found for computer: {0}", host.getName());
+        }
+        
+        // Cache the result using WeakReference for GC-friendly behavior
+        if (loadedKey != null) {
+            cache.put(host, new WeakReference<>(loadedKey));
+        }
+        
+        return loadedKey;
     }
 
     /**
@@ -90,7 +114,49 @@ public final class HostKeyHelper {
     public void saveHostKey(Computer host, HostKey hostKey) throws IOException {
         XmlFile xmlHostKeyFile = new XmlFile(getSshHostKeyFile(host.getNode()));
         xmlHostKeyFile.write(hostKey);
-        cache.put(host, hostKey);
+        // Cache the new key using WeakReference
+        cache.put(host, new WeakReference<>(hostKey));
+        LOGGER.log(Level.FINE, "Saved host key to disk and cache for computer: {0}", host.getName());
+    }
+
+    /**
+     * Clear the cached host key for a computer. Useful when a computer is being removed
+     * or when the host key needs to be refreshed.
+     * @param host the computer to clear the cached key for
+     */
+    public void clearHostKey(Computer host) {
+        cache.remove(host);
+        LOGGER.log(Level.FINE, "Cleared cached host key for computer: {0}", host.getName());
+    }
+
+    /**
+     * Get the current cache size (including stale WeakReference entries).
+     * Note: This may include entries where the WeakReference has been cleared by GC.
+     * @return the number of cached entries
+     */
+    public int getCacheSize() {
+        return cache.size();
+    }
+
+    /**
+     * Clean up stale WeakReference entries that have been cleared by GC.
+     * This is called automatically during normal operations but can be invoked manually.
+     * @return the number of stale entries removed
+     */
+    public int cleanupStaleEntries() {
+        int removed = 0;
+        var iterator = cache.entrySet().iterator();
+        while (iterator.hasNext()) {
+            var entry = iterator.next();
+            if (entry.getValue().get() == null) {
+                iterator.remove();
+                removed++;
+            }
+        }
+        if (removed > 0) {
+            LOGGER.log(Level.FINE, "Cleaned up {0} stale cache entries", removed);
+        }
+        return removed;
     }
 
     private File getSshHostKeyFile(Node node) throws IOException {
@@ -105,11 +171,10 @@ public final class HostKeyHelper {
     }
 
     private File getNodesDirectory() throws IOException {
-        // jenkins.model.Nodes#getNodesDirectory() is private, so we have to duplicate it here.
-        File nodesDir = new File(Jenkins.get().getRootDir(), "nodes");
-        if (!nodesDir.exists() || !nodesDir.isDirectory()) {
-            throw new IOException("Nodes directory does not exist");
+        Jenkins jenkins = Jenkins.getInstanceOrNull();
+        if (jenkins == null) {
+            throw new IOException("Jenkins instance is not available");
         }
-        return nodesDir;
+        return new File(jenkins.getRootDir(), "nodes");
     }
 }
